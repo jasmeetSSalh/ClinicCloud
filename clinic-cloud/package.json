@@ -9,18 +9,27 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@azure/app-configuration": "^1.9.2",
+    "@azure/identity": "^4.13.0",
+    "@azure/keyvault-secrets": "^4.10.0",
+    "dotenv": "^17.2.3",
+    "next": "16.0.1",
+    "oci-common": "^2.121.1",
+    "oci-objectstorage": "^2.121.1",
+    "oci-secrets": "^2.121.1",
+    "oracledb": "^6.6.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "next": "16.0.1"
+    "react-dom": "19.2.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/oracledb": "^6.10.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
-    "eslint-config-next": "16.0.1"
+    "eslint-config-next": "16.0.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
