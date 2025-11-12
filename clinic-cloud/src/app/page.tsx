@@ -1,16 +1,23 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 
 interface Table {
   name: string;
+}
+
+interface TableData {
+  [key: string]: any;
 }
 
 export default function Home() {
   const [tables, setTables] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [tableData, setTableData] = useState<TableData[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTables();
@@ -35,18 +42,101 @@ export default function Home() {
     }
   };
 
+const deleteAllTables = async () => {
+  try {
+    setLoading(true);
+    const response = await fetch('/api/tables', {
+      method: 'DELETE'
+    });
+    const responseMessage = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseMessage.error || 'Failed to delete tables');
+    }
+    fetchTables();
+    setError(null);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'An error occurred');
+  } finally {
+    setLoading(false);
+  }
+}
+
+const createAllTables = async () => {
+  try {
+    setLoading(true);
+    const response = await fetch('/api/tables', {
+      method: 'POST'
+    });
+    const responseMessage = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseMessage.error || 'Failed to create tables');
+    }
+    fetchTables();
+    setError(null);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'An error occurred');
+  } finally {
+    setLoading(false);
+  }
+}
+
+const populateAllTables = async () => {
+  try {
+    setLoading(true);
+    const response = await fetch('/api/tables', {
+      method: 'PUT'
+    });
+    const responseMessage = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseMessage.error || 'Failed to populate tables');
+    }
+    fetchTables();
+    setError(null);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'An error occurred');
+  } finally {
+    setLoading(false);
+  }
+}
+
+const fetchTableData = async (tableName: string) => {
+  try {
+    setModalLoading(true);
+    setModalError(null);
+    const response = await fetch(`/api/tables/${tableName}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch table data');
+    }
+    
+    setTableData(data.data || []);
+  } catch (err) {
+    setModalError(err instanceof Error ? err.message : 'An error occurred');
+    setTableData([]);
+  } finally {
+    setModalLoading(false);
+  }
+};
+
+const handleTableClick = (tableName: string) => {
+  setSelectedTable(tableName.toLowerCase());
+  fetchTableData(tableName.toLowerCase());
+};
+
+const closeModal = () => {
+  setSelectedTable(null);
+  setTableData([]);
+  setModalError(null);
+};
+
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 text-center">
-          <Image
-            className="mx-auto mb-4 dark:invert"
-            src="/next.svg"
-            alt="Next.js logo"
-            width={120}
-            height={24}
-            priority
-          />
           <h1 className="text-4xl font-bold text-black dark:text-white mb-2">
             Oracle Database Tables
           </h1>
@@ -60,13 +150,36 @@ export default function Home() {
             <h2 className="text-2xl font-semibold text-black dark:text-white">
               Database Tables
             </h2>
-            <button
-              onClick={fetchTables}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Loading...' : 'Refresh'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={fetchTables}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
+              <button
+                onClick={deleteAllTables}
+                disabled={loading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Executing...' : 'Delete All Tables'}
+              </button>
+              <button
+                onClick={createAllTables}
+                disabled={loading}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Creating All Tables...' : 'Create All Tables'}
+              </button>
+              <button
+                onClick={populateAllTables}
+                disabled={loading}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Populating...' : 'Populate All Tables'}
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -98,7 +211,8 @@ export default function Home() {
                       {tables.map((table, index) => (
                         <div
                           key={index}
-                          className="p-3 bg-zinc-50 dark:bg-zinc-700 rounded-md border border-zinc-200 dark:border-zinc-600"
+                          onClick={() => handleTableClick(table)}
+                          className="p-3 bg-zinc-50 dark:bg-zinc-700 rounded-md border border-zinc-200 dark:border-zinc-600 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-600 transition-colors"
                         >
                           <p className="font-mono text-sm text-black dark:text-white">
                             {table}
@@ -121,6 +235,91 @@ export default function Home() {
           )}
         </div>
       </main>
+
+      {/* Modal */}
+      {selectedTable && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-black dark:text-white">
+                {selectedTable} Data
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-hidden p-6">
+              {modalLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-4 text-zinc-600 dark:text-zinc-400">Loading table data...</p>
+                </div>
+              ) : modalError ? (
+                <div className="text-center py-12">
+                  <p className="text-red-600 dark:text-red-400">{modalError}</p>
+                </div>
+              ) : tableData.length > 0 ? (
+                <div className="overflow-auto max-h-full">
+                  <table className="min-w-full border border-zinc-200 dark:border-zinc-700">
+                    <thead className="bg-zinc-50 dark:bg-zinc-700 sticky top-0">
+                      <tr>
+                        {Object.keys(tableData[0]).map((column) => (
+                          <th
+                            key={column}
+                            className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-600"
+                          >
+                            {column}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-zinc-800">
+                      {tableData.map((row, index) => (
+                        <tr key={index} className="hover:bg-zinc-50 dark:hover:bg-zinc-700">
+                          {Object.values(row).map((value, valueIndex) => (
+                            <td
+                              key={valueIndex}
+                              className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-600"
+                            >
+                              {value !== null && value !== undefined 
+                                ? String(value) 
+                                : <span className="text-zinc-400 italic">NULL</span>
+                              }
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-zinc-600 dark:text-zinc-400">No data found in this table.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                {tableData.length > 0 && `${tableData.length} row${tableData.length !== 1 ? 's' : ''} found`}
+              </p>
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 bg-zinc-600 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
