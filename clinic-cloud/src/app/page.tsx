@@ -18,6 +18,7 @@ export default function Home() {
   const [tableData, setTableData] = useState<TableData[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [createOn, setCreateOn] = useState(false);
 
   useEffect(() => {
     fetchTables();
@@ -131,6 +132,7 @@ const closeModal = () => {
   setSelectedTable(null);
   setTableData([]);
   setModalError(null);
+  setCreateOn(false);
 };
 
   return (
@@ -252,6 +254,60 @@ const closeModal = () => {
                 ×
               </button>
             </div>
+            <div className="flex justify-end gap-4 px-4">
+              <button 
+                onClick={()=>setCreateOn(!createOn)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                Create New Entry
+              </button>
+              <button 
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                Edit Entry
+              </button>
+              <button 
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:cursor-pointer hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                Delete Entry
+              </button>
+            </div>
+
+            {createOn && Array.isArray(tableData) && tableData.length > 0 && (
+              <div className="flex justify-center py-4">
+                <form className="flex-1 flex flex-col gap-4 justify-center px-4">
+                  <table className="table-auto w-full border-collapse">
+                    <thead className="bg-zinc-50 dark:bg-zinc-700 sticky top-0 border-l border-r border-zinc-50 dark:border-zinc-700">
+                      <tr>
+                        {Object.keys(tableData[0] || {}).map((column) => (
+                          <th
+                            key={column}
+                            className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-600"
+                          >
+                            {column}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-zinc-800">
+                      <tr>
+                        {Object.keys(tableData[0] || {}).map((column,index) => (
+                          <td
+                            key={column}
+                            className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-l border-r border-zinc-200 dark:border-zinc-600"
+                          >
+                            <input name={column} autoFocus={index==0} className="w-full border-none outline-none bg-transparent" />
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <input type="submit" className="w-1/10 px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"/>
+
+                </form>
+              </div>
+            )}
+
+
+
 
             {/* Modal Content */}
             <div className="flex-1 overflow-hidden p-6">
