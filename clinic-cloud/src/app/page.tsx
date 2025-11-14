@@ -173,6 +173,8 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
     setCreateSuccess(true);
     setCreateResultMsg(result.message);
 
+    await fetchTableData(tableName);
+
   } else {
     console.log("something went wrong");    
     console.log(result);
@@ -344,7 +346,7 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
                             key={column}
                             className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-l border-r border-zinc-200 dark:border-zinc-600"
                           >
-                            <input name={column} autoFocus={index==0} className="w-full border-none outline-none bg-transparent" />
+                            {column.includes("DATE")?  <input name={column} type="date" autoFocus={index==0} className="w-full border-none outline-none bg-transparent" /> : <input name={column} autoFocus={index==0} className="w-full border-none outline-none bg-transparent" />}
                           </td>
                         ))}
                       </tr>
