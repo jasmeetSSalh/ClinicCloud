@@ -18,7 +18,12 @@ export default function Home() {
   const [tableData, setTableData] = useState<TableData[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+
   const [createOn, setCreateOn] = useState(false);
+  const [createDisable, setCreateDisable] = useState(false);
+  const [createResultMsg, setCreateResultMsg] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchTables();
@@ -134,6 +139,46 @@ const closeModal = () => {
   setModalError(null);
   setCreateOn(false);
 };
+
+async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: string) {
+  event.preventDefault();
+
+  setCreateDisable(true);
+  setCreateLoading(true);
+  const data = new FormData(event.currentTarget);
+  const formObject = Object.fromEntries(data.entries());
+
+  console.log("Sending:");
+  console.log(formObject);
+  console.log("Table:", tableName);
+
+  const res = await fetch(`/api/tables/${tableName}`, {
+    method: 'POST',
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tableName: tableName,
+      tableData: formObject
+    })
+  });
+  const result = await res.json();
+
+
+  if (res.ok){
+    console.log("post successful");
+    setCreateSuccess(true);
+    setCreateResultMsg(result.message);
+
+  } else {
+    console.log("something went wrong");    
+    console.log(result);
+    setCreateResultMsg(result.message);
+    setCreateSuccess(false);
+  }
+  setCreateDisable(false);
+  setCreateLoading(false);
+
+}
+
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
@@ -257,8 +302,9 @@ const closeModal = () => {
             <div className="flex justify-end gap-4 px-4">
               <button 
                 onClick={()=>setCreateOn(!createOn)}
+                disabled={createDisable}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                Create New Entry
+                {createOn ? "Cancel New Entry" : "Create New Entry"}
               </button>
               <button 
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
@@ -272,7 +318,7 @@ const closeModal = () => {
 
             {createOn && Array.isArray(tableData) && tableData.length > 0 && (
               <div className="flex justify-center py-4">
-                <form className="flex-1 flex flex-col gap-4 justify-center px-4">
+                <form onSubmit={(event)=>handleSubmit(event, selectedTable)} className="flex-1 flex flex-col gap-4 justify-center px-4">
                   <table className="table-auto w-full border-collapse">
                     <thead className="bg-zinc-50 dark:bg-zinc-700 sticky top-0 border-l border-r border-zinc-50 dark:border-zinc-700">
                       <tr>
@@ -300,8 +346,10 @@ const closeModal = () => {
                     </tbody>
                   </table>
 
-                  <input type="submit" className="w-1/10 px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"/>
-
+                  <input disabled={createDisable} type="submit" className="w-1/10 px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"/>
+                  {createLoading ? <p>Loading</p> : 
+                  createSuccess ? <p>Insert Successfull</p> : <p>{createResultMsg}</p>
+                  }
                 </form>
               </div>
             )}
