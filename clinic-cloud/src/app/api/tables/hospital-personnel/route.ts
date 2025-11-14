@@ -20,34 +20,34 @@ export async function GET() {
 }
 
 
-export async function POST(request: Request){
-  console.log("static route")
-  try {
-    const data = await request.json();
+// export async function POST(request: Request){
+//   console.log("static route")
+//   try {
+//     const data = await request.json();
 
-    console.log("data received");
-    console.log(data);
+//     console.log("data received");
+//     console.log(data);
 
-    // const send = await addEntry(data);
-    // if(send.success){
-    //   return NextResponse.json(
-    //   {message: "Successfully Added New Entry"}, 
-    //   {status: 200});    
-    // } else {
-    //   return NextResponse.json({
-    //     error: "Failed to create new entry to ... table",
-    //   },
-    //   {status: 500}
-    //   )
-    // }
+//     // const send = await addEntry(data);
+//     // if(send.success){
+//     //   return NextResponse.json(
+//     //   {message: "Successfully Added New Entry"}, 
+//     //   {status: 200});    
+//     // } else {
+//     //   return NextResponse.json({
+//     //     error: "Failed to create new entry to ... table",
+//     //   },
+//     //   {status: 500}
+//     //   )
+//     // }
 
 
-  } catch (error) {
-    console.error("API Error: ", error);
-    return NextResponse.json({
-      error: "Failed to create new entry to ... table",
-    },
-    {status: 500}
-  )
-  }
-}
+//   } catch (error) {
+//     console.error("API Error: ", error);
+//     return NextResponse.json({
+//       error: "Failed to create new entry to ... table",
+//     },
+//     {status: 500}
+//   )
+//   }
+// }
