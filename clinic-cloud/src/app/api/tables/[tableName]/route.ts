@@ -61,10 +61,10 @@ export async function POST(request:Request){
       console.log(Object.entries(data.tableData));
       Object.entries(data.tableData).forEach(([key, value], index)=> {
         if(index === Object.entries(data.tableData).length-1){
-          if(key.includes("DATE")){
-            queryString += `TO_DATE('${value}', 'YYYY-MM-DD'))`
-          } else if(value === ''){ // check if input is empty
+          if(value === ''){ // check if input is empty
             queryString += `null)`
+          } else if(key.includes("DATE")){
+            queryString += `TO_DATE('${value}', 'YYYY-MM-DD'))`
           } else if(!Number.isNaN(Number(value)) || value === null){
             queryString += `${value})`
           } else {
@@ -72,10 +72,10 @@ export async function POST(request:Request){
           }
 
         } else {
-          if(key.includes("DATE")){
-            queryString += `TO_DATE('${value}', 'YYYY-MM-DD'),`
-          }else if(value === ''){ // check if there was no input for this field
+          if(value === ''){ // check if there was no input for this field
             queryString += `null,`
+          }else if(key.includes("DATE")){
+            queryString += `TO_DATE('${value}', 'YYYY-MM-DD'),`
           } else if(!Number.isNaN(Number(value)) || value === null){ // check if the input is a number or not
             queryString += `${value},`
           } else {

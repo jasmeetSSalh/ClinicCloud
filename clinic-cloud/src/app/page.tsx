@@ -325,33 +325,36 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
 
             {createOn && Array.isArray(tableData) && tableData.length > 0 && (
               <div className="flex justify-center py-4">
-                <form onSubmit={(event)=>handleSubmit(event, selectedTable)} className="flex-1 flex flex-col gap-4 justify-center px-4">
-                  <table className="table-auto w-full border-collapse">
-                    <thead className="bg-zinc-50 dark:bg-zinc-700 sticky top-0 border-l border-r border-zinc-50 dark:border-zinc-700">
-                      <tr>
-                        {Object.keys(tableData[0] || {}).map((column) => (
-                          <th
-                            key={column}
-                            className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-600"
-                          >
-                            {column}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-zinc-800">
-                      <tr>
-                        {Object.keys(tableData[0] || {}).map((column,index) => (
-                          <td
-                            key={column}
-                            className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-l border-r border-zinc-200 dark:border-zinc-600"
-                          >
-                            {column.includes("DATE")?  <input name={column} type="date" autoFocus={index==0} className="w-full border-none outline-none bg-transparent" /> : <input name={column} autoFocus={index==0} className="w-full border-none outline-none bg-transparent" />}
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
+                <form onSubmit={(event)=>handleSubmit(event, selectedTable)} className="flex-1 flex flex-col gap-4 justify-center px-4 w-full">
+                  <div className="overflow-x-auto">
+                    <table className="table-auto w-full border-collapse">
+                      <thead className="bg-zinc-50 dark:bg-zinc-700 sticky top-0 border-l border-r border-zinc-50 dark:border-zinc-700">
+                        <tr>
+                          {Object.keys(tableData[0] || {}).map((column) => (
+                            <th
+                              key={column}
+                              className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-600"
+                            >
+                              {column}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-zinc-800">
+                        <tr>
+                          {Object.keys(tableData[0] || {}).map((column,index) => (
+                            <td
+                              key={column}
+                              className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-l border-r border-zinc-200 dark:border-zinc-600"
+                            >
+                              {column.includes("DATE")?  <input name={column} type="date" autoFocus={index==0} className="w-full border-none outline-none bg-transparent" /> : <input name={column} autoFocus={index==0} className="w-full border-none outline-none bg-transparent" />}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>                    
+                  </div>
+
 
                   <input disabled={createDisable} type="submit" className="w-1/10 px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"/>
                   {createLoading ? <p>Loading</p> : 
