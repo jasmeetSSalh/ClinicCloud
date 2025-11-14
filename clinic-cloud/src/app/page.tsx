@@ -138,6 +138,10 @@ const closeModal = () => {
   setTableData([]);
   setModalError(null);
   setCreateOn(false);
+  setCreateDisable(false);
+  setCreateResultMsg("");
+  setCreateSuccess(null);
+  setCreateLoading(false);
 };
 
 async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: string) {
@@ -171,7 +175,7 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
   } else {
     console.log("something went wrong");    
     console.log(result);
-    setCreateResultMsg(result.message);
+    setCreateResultMsg(result.message.code);
     setCreateSuccess(false);
   }
   setCreateDisable(false);
@@ -299,9 +303,9 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
                 ×
               </button>
             </div>
-            <div className="flex justify-end gap-4 px-4">
+            <div className="flex justify-end gap-4 px-4 py-4">
               <button 
-                onClick={()=>setCreateOn(!createOn)}
+                onClick={()=>{setCreateOn(!createOn); setCreateSuccess(null)}}
                 disabled={createDisable}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 {createOn ? "Cancel New Entry" : "Create New Entry"}
@@ -348,7 +352,13 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
 
                   <input disabled={createDisable} type="submit" className="w-1/10 px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"/>
                   {createLoading ? <p>Loading</p> : 
-                  createSuccess ? <p>Insert Successfull</p> : <p>{createResultMsg}</p>
+                    createSuccess !== null && (
+                      createSuccess ? (
+                        <p className="text-green-500">Insert Successful</p>
+                      ) : (
+                        <p className="text-red-500">Error Inserting: {createResultMsg}</p>
+                      )
+                    )
                   }
                 </form>
               </div>
@@ -358,7 +368,7 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
 
 
             {/* Modal Content */}
-            <div className="flex-1 overflow-hidden p-6">
+            <div className="flex-1 overflow-y-auto p-6">
               {modalLoading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>

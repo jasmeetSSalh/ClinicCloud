@@ -259,7 +259,7 @@ export async function addEntry(query: string){
     } catch (error: any) {
       // Log individual insert errors but continue with other inserts
       console.error(`Error inserting new entry: `, error);
-      return {success: false, error: error}
+      return {success: false, message: error}
     }
     
 
