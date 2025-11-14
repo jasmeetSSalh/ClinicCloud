@@ -1,3 +1,4 @@
+import { connect } from 'http2';
 import oracledb from 'oracledb';
 
 // Initialize thick mode for better compatibility with older Oracle versions
@@ -220,6 +221,53 @@ export async function populateAllTables() {
     await connection.commit();
     
     return { success: true, message: 'All tables populated with sample data successfully' };
+  } catch (error) {
+    console.error('Error populating tables:', error);
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error('Error rolling back transaction:', rollbackError);
+      }
+    }
+    throw error;
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (error) {
+        console.error('Error closing connection:', error);
+      }
+    }
+  }
+}
+
+export async function addEntry(query: string){
+  let connection;
+  try {
+    connection = await getConnection();
+    console.log("inside addEntry")
+    console.log(query);
+
+    // query database to add a new entry
+
+    try {
+      console.log("query executing")
+      await connection.execute(query)
+      console.log("query executed")
+
+    } catch (error: any) {
+      // Log individual insert errors but continue with other inserts
+      console.error(`Error inserting new entry: `, error);
+      return {success: false, message: error}
+    }
+    
+
+    await connection.commit();
+
+    console.log("query commited")
+    
+    return { success: true, message: 'New Entry Successfully Created'};
   } catch (error) {
     console.error('Error populating tables:', error);
     if (connection) {
