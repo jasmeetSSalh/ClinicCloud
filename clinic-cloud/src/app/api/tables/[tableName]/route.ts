@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addEntry, getTableData } from '@/lib/db';
+import { addEntry, deleteEntry, getTableData } from '@/lib/db';
 
 export async function GET(
   request: Request,
@@ -102,10 +102,29 @@ export async function POST(request:Request){
   
 
 
-    return Response.json({message: "success"},{status: 200});
   } catch (error) {
     return Response.json({error: "Error POSTing table data"});
   }
 
+
+}
+
+export async function DELETE(request:Request) {
+  try {
+    const data = await request.json()
+    console.log(data)    
+    try {
+      let query = `DELETE FROM ${data.tableName} WHERE ${Object.entries(data.tableData)[0][0]} = ${Object.entries(data.tableData)[0][1]}`
+      console.log(Object.entries(data.tableData)[0])
+
+      const res = await deleteEntry(query)
+
+      return Response.json({message: "Delete Successful"},{status:200})  
+    } catch (error) {
+      return Response.json({error: error},{status: 500})
+    }
+  } catch (error) {
+    return Response.json({error: "Error DELETEing"})
+  }
 
 }
