@@ -289,6 +289,54 @@ export async function addEntry(query: string){
   }
 }
 
+export async function deleteEntry(query:string){
+  console.log(query);
+  let connection;
+  try {
+    connection = await getConnection();
+    console.log("inside deleteEntry")
+    console.log(query);
+
+    try {
+      console.log("query executing")
+      await connection.execute(query)
+      console.log("query executed")
+
+    } catch (error: any) {
+      // Log individual insert errors but continue with other inserts
+      console.error(`Error inserting new entry: `, error);
+      return {success: false, message: error}
+    }
+
+
+    await connection.commit();
+
+    console.log("query commited")
+    return {success: true , message: "Successfully Deleted Entry"}
+    
+
+  } catch (error) {
+    console.error('Error deleting entry:', error);
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error('Error rolling back transaction:', rollbackError);
+      }
+    }
+    throw error;
+
+  } finally{
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (error) {
+        console.error('Error closing connection:', error);
+      }
+    }
+  }
+}
+
 export async function createAllTables() {
    let connection;
   try {
@@ -347,8 +395,8 @@ export async function createAllTables() {
         PATIENT_ID NUMBER NOT NULL,
         PERSONNEL_ID NUMBER NOT NULL,
         CONSTRAINT H_PER_PAT_ASSGN_PK PRIMARY KEY (PATIENT_ID, PERSONNEL_ID),
-        CONSTRAINT FK_PAT_ASSIGN FOREIGN KEY (PATIENT_ID) REFERENCES patient_list(PATIENT_ID),
-        CONSTRAINT FK_PER_ASSIGN FOREIGN KEY (PERSONNEL_ID) REFERENCES hospital_personnel(PERSONNEL_ID)
+        CONSTRAINT FK_PAT_ASSIGN FOREIGN KEY (PATIENT_ID) REFERENCES patient_list(PATIENT_ID) ON DELETE CASCADE,
+        CONSTRAINT FK_PER_ASSIGN FOREIGN KEY (PERSONNEL_ID) REFERENCES hospital_personnel(PERSONNEL_ID) ON DELETE CASCADE
       )`,
       
       `CREATE TABLE hosp_med_inventory 
@@ -356,7 +404,7 @@ export async function createAllTables() {
         MEDICINE_ID NUMBER NOT NULL,
         QUANTITY NUMBER NOT NULL CHECK (QUANTITY >= 0),
         CONSTRAINT HOSP_MED_INV_PK PRIMARY KEY (MEDICINE_ID),
-        CONSTRAINT FK_HOSP_MED FOREIGN KEY (MEDICINE_ID) REFERENCES PHARM_MED_INVENTORY(MEDICINE_ID)
+        CONSTRAINT FK_HOSP_MED FOREIGN KEY (MEDICINE_ID) REFERENCES PHARM_MED_INVENTORY(MEDICINE_ID) ON DELETE CASCADE
       )`,
       
       `CREATE TABLE hosp_supply_inventory
@@ -364,7 +412,7 @@ export async function createAllTables() {
         SUPPLY_ID NUMBER NOT NULL,
         QUANTITY NUMBER NOT NULL CHECK (QUANTITY >= 0),
         CONSTRAINT HOSP_SUPPLY_INV_PK PRIMARY KEY (SUPPLY_ID),
-        CONSTRAINT FK_HOSP_SUPPLY FOREIGN KEY (SUPPLY_ID) REFERENCES pharm_supply_inventory(SUPPLY_ID)
+        CONSTRAINT FK_HOSP_SUPPLY FOREIGN KEY (SUPPLY_ID) REFERENCES pharm_supply_inventory(SUPPLY_ID) ON DELETE CASCADE
       )`,
       
       `CREATE TABLE patient_med_order
@@ -377,9 +425,9 @@ export async function createAllTables() {
         ORDER_DATE DATE NOT NULL,
         RECEIVED_DATE DATE,
         CONSTRAINT PAT_MED_ORD_PK PRIMARY KEY (ORDER_ID),
-        CONSTRAINT FK_PAT_MED_PER FOREIGN KEY (PERSONNEL_ID) REFERENCES hospital_personnel(PERSONNEL_ID),
-        CONSTRAINT FK_PAT_MED_PAT FOREIGN KEY (PATIENT_ID) REFERENCES patient_list(PATIENT_ID),
-        CONSTRAINT FK_PAT_MED_MED FOREIGN KEY (MEDICINE_ID) REFERENCES PHARM_MED_INVENTORY(MEDICINE_ID),
+        CONSTRAINT FK_PAT_MED_PER FOREIGN KEY (PERSONNEL_ID) REFERENCES hospital_personnel(PERSONNEL_ID) ON DELETE CASCADE,
+        CONSTRAINT FK_PAT_MED_PAT FOREIGN KEY (PATIENT_ID) REFERENCES patient_list(PATIENT_ID) ON DELETE CASCADE,
+        CONSTRAINT FK_PAT_MED_MED FOREIGN KEY (MEDICINE_ID) REFERENCES PHARM_MED_INVENTORY(MEDICINE_ID) ON DELETE CASCADE,
         CONSTRAINT CHK_PAT_MED_RECV CHECK (RECEIVED_DATE IS NULL OR RECEIVED_DATE >= ORDER_DATE)
       )`,
       
@@ -392,8 +440,8 @@ export async function createAllTables() {
         ORDER_DATE DATE NOT NULL,
         RECEIVED_DATE DATE,
         CONSTRAINT HOSP_MED_ORD_PK PRIMARY KEY (ORDER_ID),
-        CONSTRAINT FK_HOSP_MED_PER FOREIGN KEY (PERSONNEL_ID) REFERENCES hospital_personnel(PERSONNEL_ID),
-        CONSTRAINT FK_HOSP_MED_MED FOREIGN KEY (MEDICINE_ID) REFERENCES PHARM_MED_INVENTORY(MEDICINE_ID),
+        CONSTRAINT FK_HOSP_MED_PER FOREIGN KEY (PERSONNEL_ID) REFERENCES hospital_personnel(PERSONNEL_ID) ON DELETE CASCADE,
+        CONSTRAINT FK_HOSP_MED_MED FOREIGN KEY (MEDICINE_ID) REFERENCES PHARM_MED_INVENTORY(MEDICINE_ID) ON DELETE CASCADE,
         CONSTRAINT CHK_HOSP_MED_RECV CHECK (RECEIVED_DATE IS NULL OR RECEIVED_DATE >= ORDER_DATE)
       )`,
       
@@ -406,8 +454,8 @@ export async function createAllTables() {
         ORDER_DATE DATE NOT NULL,
         RECEIVED_DATE DATE,
         CONSTRAINT HOSP_SUP_ORD_PK PRIMARY KEY (ORDER_ID),
-        CONSTRAINT FK_HOSP_SUP_PER FOREIGN KEY (PERSONNEL_ID) REFERENCES hospital_personnel(PERSONNEL_ID),
-        CONSTRAINT FK_HOSP_SUP_SUP FOREIGN KEY (SUPPLY_ID) REFERENCES pharm_supply_inventory(SUPPLY_ID),
+        CONSTRAINT FK_HOSP_SUP_PER FOREIGN KEY (PERSONNEL_ID) REFERENCES hospital_personnel(PERSONNEL_ID) ON DELETE CASCADE,
+        CONSTRAINT FK_HOSP_SUP_SUP FOREIGN KEY (SUPPLY_ID) REFERENCES pharm_supply_inventory(SUPPLY_ID) ON DELETE CASCADE,
         CONSTRAINT CHK_HOSP_SUP_RECV CHECK (RECEIVED_DATE IS NULL OR RECEIVED_DATE >= ORDER_DATE)
       )`
     ];
