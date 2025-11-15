@@ -26,6 +26,12 @@ export default function Home() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createSuccess, setCreateSuccess] = useState<boolean | null>(null);
 
+  const [selectedEntryKey, setSelectedEntryKey] = useState<number | null>(null);
+  const [selectedEntryObject, setSelectedEntryObject] = useState<Record<string,any> | null>(null);
+
+  const [deleteOn, setDeleteOn] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+
   useEffect(() => {
     fetchTables();
   }, []);
@@ -143,6 +149,9 @@ const closeModal = () => {
   setCreateResultMsg("");
   setCreateSuccess(null);
   setCreateLoading(false);
+
+  setSelectedEntryKey(null);
+  setDeleteOn(false);
 };
 
 async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: string) {
@@ -184,6 +193,39 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
   setCreateDisable(false);
   setCreateLoading(false);
 
+}
+
+function selectEntry(event: React.MouseEvent<HTMLElement>, index: number){
+  console.log(event.currentTarget)
+  if(selectedEntryKey !== index){
+    let selectedEntryElement = event.currentTarget;
+
+    let tableColumns = Object.keys(tableData[0]);
+    let entryObject: Record<string, any> = {};
+
+    [...selectedEntryElement.children].forEach((element, index) => {
+      console.log(element.textContent);
+      entryObject[tableColumns[index]] = element.textContent;
+
+    });
+
+    console.log(selectedEntryElement);
+    console.log(tableColumns);
+    console.log(entryObject);
+
+    setSelectedEntryKey(index);
+    setSelectedEntryObject(entryObject);
+  } else {
+    setSelectedEntryKey(null);
+  }
+
+}
+
+function deleteEntry(){
+
+  setDeleteOn(!deleteOn)
+  console.log(selectedEntryKey);
+  console.log(Object.keys(tableData[0]));
 }
 
 
@@ -318,6 +360,7 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
                 Edit Entry
               </button>
               <button 
+                onClick={()=>deleteEntry()}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:cursor-pointer hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 Delete Entry
               </button>
@@ -370,7 +413,9 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
               </div>
             )}
 
+            {
 
+            }
 
 
             {/* Modal Content */}
@@ -401,11 +446,11 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
                     </thead>
                     <tbody className="bg-white dark:bg-zinc-800">
                       {tableData.map((row, index) => (
-                        <tr key={index} className="hover:bg-zinc-50 dark:hover:bg-zinc-700">
+                        <tr key={index} onClick={(event)=>selectEntry(event, index)} className={`${selectedEntryKey === index ? "bg-zinc-900" : "bg-none"}  hover:cursor-pointer hover:bg-zinc-700 group active:bg-zinc-500`}>
                           {Object.values(row).map((value, valueIndex) => (
                             <td
                               key={valueIndex}
-                              className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-600"
+                              className="group-active:bg-zinc-500 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-600"
                             >
                               {value !== null && value !== undefined 
                                 ? String(value) 
@@ -423,6 +468,12 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
                   <p className="text-zinc-600 dark:text-zinc-400">No data found in this table.</p>
                 </div>
               )}
+            </div>
+
+            <div className="flex flex-col px-4 pb-2">
+              <p>To Create a New Entry - click on Create New Entry, fill out the fields, press submit</p>
+              <p>To Edit an Entry - click on an entry, click on Edit Entry, change the desired fields, press submit</p>
+              <p>To Delete an Entry - click on an entry, click on Delete Entry, confirm your decision</p>
             </div>
 
             {/* Modal Footer */}
