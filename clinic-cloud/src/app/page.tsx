@@ -452,33 +452,36 @@ async function deleteEntry(tableName: string){
 
             { deleteOn && selectedEntryKey !== null && selectedEntryObject ?
             (<div className="flex flex-col justify-center py-4 px-4 gap-4">
-              <table>
-                  <thead className="bg-zinc-50 dark:bg-zinc-700 sticky top-0 border-l border-r border-zinc-50 dark:border-zinc-700">
-                  <tr>
-                    {Object.keys(tableData[0] || {}).map((value) => {
-                      return (
-                        <th key={value} className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-600">
-                          {value}
-                        </th>
-                      );
-                    })
-                    }
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-zinc-800">
+              <div className="overflow-x-auto">
+                <table>
+                    <thead className="bg-zinc-50 dark:bg-zinc-700 sticky top-0 border-l border-r border-zinc-50 dark:border-zinc-700">
                     <tr>
-                      {
-                        Object.values(selectedEntryObject || {}).map((value,index)=>{
-                          return(
-                            <td key={index} className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-l border-r border-zinc-200 dark:border-zinc-600">
-                              {value}
-                            </td>
-                          )
-                        })
+                      {Object.keys(tableData[0] || {}).map((value) => {
+                        return (
+                          <th key={value} className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-600">
+                            {value}
+                          </th>
+                        );
+                      })
                       }
                     </tr>
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white dark:bg-zinc-800">
+                      <tr>
+                        {
+                          Object.values(selectedEntryObject || {}).map((value,index)=>{
+                            return(
+                              <td key={index} className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-l border-r border-zinc-200 dark:border-zinc-600">
+                                {value}
+                              </td>
+                            )
+                          })
+                        }
+                      </tr>
+                  </tbody>
+                </table>                
+              </div>
+
 
               <div className="flex gap-4">
                 <button 
