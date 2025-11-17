@@ -34,6 +34,11 @@ export default function Home() {
   const [deleteMessage, setDelMsg] = useState<string | null>(null);
   const [deleteLoading, setDelLoading] = useState(false);
 
+  const [editOn, setEditOn] = useState(false);
+  const [editSuccess, setEditSuccess] = useState<boolean | null>(null);
+  const [editMessage, setEditMessage] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+
   useEffect(() => {
     fetchTables();
   }, []);
@@ -76,6 +81,7 @@ const deleteAllTables = async () => {
     setLoading(false);
   }
 }
+
 
 const createAllTables = async () => {
   try {
@@ -156,7 +162,11 @@ const closeModal = () => {
   setDeleteOn(false);
   setDeleteSuccess(null);
   setDelMsg(null);
-  set
+  
+  setEditOn(false);
+  setEditSuccess(null);
+  setEditMessage(null);
+  setEditLoading(false);
 };
 
 async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: string) {
@@ -206,10 +216,10 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
 function selectEntry(event: React.MouseEvent<HTMLElement>, index: number){
   console.log(event.currentTarget)
   if(selectedEntryKey !== index){
-    let selectedEntryElement = event.currentTarget;
+    const selectedEntryElement = event.currentTarget;
 
-    let tableColumns = Object.keys(tableData[0]);
-    let entryObject: Record<string, any> = {};
+    const tableColumns = Object.keys(tableData[0]);
+    const entryObject: Record<string, any> = {};
 
     [...selectedEntryElement.children].forEach((element, index) => {
       console.log(element.textContent);
@@ -263,6 +273,46 @@ async function deleteEntry(tableName: string){
     }
     setDelLoading(false);
 
+}
+
+async function editEntry(event: React.FormEvent<HTMLFormElement>, tableName: string) {
+  event.preventDefault();
+  
+  setEditLoading(true);
+  const data = new FormData(event.currentTarget);
+  const formObject = Object.fromEntries(data.entries());
+  
+  console.log("Editing:", selectedEntryObject);
+  console.log("With new data:", formObject);
+  
+  const res = await fetch(`/api/tables/${tableName}`, {
+    method: 'PUT',
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tableName: tableName,
+      existingEntry: selectedEntryObject,
+      replacementEntry: formObject
+    })
+  });
+  
+  const result = await res.json();
+  
+  if (res.ok) {
+    console.log("Edit successful");
+    setEditSuccess(true);
+    setEditMessage(result.message);
+    setEditOn(false);
+    
+    await fetchTableData(tableName);
+    setTimeout(() => setEditSuccess(null), 2000);
+  } else {
+    console.log("Edit failed");
+    console.log(result);
+    setEditMessage(result.error || result.message);
+    setEditSuccess(false);
+  }
+  
+  setEditLoading(false);
 }
 
 
@@ -393,8 +443,10 @@ async function deleteEntry(tableName: string){
                 {createOn ? "Cancel New Entry" : "Create New Entry"}
               </button>
               <button 
+                onClick={() => setEditOn(!editOn)}
+                disabled={selectedEntryKey === null}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                Edit Entry
+                {editOn ? "Cancel Edit" : "Edit Entry"}
               </button>
               <button 
                 onClick={()=>setDeleteOn(!deleteOn)}
@@ -443,6 +495,71 @@ async function deleteEntry(tableName: string){
                         <p className="text-green-500">Insert Successful</p>
                       ) : (
                         <p className="text-red-500">Error Inserting: {createResultMsg}</p>
+                      )
+                    )
+                  }
+                </form>
+              </div>
+            )}
+
+            {editOn && selectedEntryKey !== null && selectedEntryObject && Array.isArray(tableData) && tableData.length > 0 && (
+              <div className="flex justify-center py-4">
+                <form onSubmit={(event) => editEntry(event, selectedTable)} className="flex-1 flex flex-col gap-4 justify-center px-4 w-full">
+                  <div className="overflow-x-auto">
+                    <table className="table-auto w-full border-collapse">
+                      <thead className="bg-zinc-50 dark:bg-zinc-700 sticky top-0 border-l border-r border-zinc-50 dark:border-zinc-700">
+                        <tr>
+                          {Object.keys(tableData[0] || {}).map((column) => (
+                            <th
+                              key={column}
+                              className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-600"
+                            >
+                              {column}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-zinc-800">
+                        <tr>
+                          {Object.keys(tableData[0] || {}).map((column, index) => (
+                            <td
+                              key={column}
+                              className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 border-b border-l border-r border-zinc-200 dark:border-zinc-600"
+                            >
+                              {column.includes("DATE") ? 
+                                <input 
+                                  name={column} 
+                                  type="date" 
+                                  autoFocus={index === 0} 
+                                  defaultValue={selectedEntryObject[column] ? new Date(selectedEntryObject[column]).toISOString().split('T')[0] : ''}
+                                  className="w-full border-none outline-none bg-transparent" 
+                                /> : 
+                                <input 
+                                  name={column} 
+                                  autoFocus={index === 0} 
+                                  defaultValue={selectedEntryObject[column] || ''}
+                                  className="w-full border-none outline-none bg-transparent" 
+                                />
+                              }
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <input 
+                    disabled={editLoading} 
+                    type="submit" 
+                    value="Update Entry"
+                    className="w-1/10 px-4 py-2 bg-blue-600 text-white rounded-lg hover:cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  />
+                  {editLoading ? <p>Loading</p> : 
+                    editSuccess !== null && (
+                      editSuccess ? (
+                        <p className="text-green-500">Update Successful</p>
+                      ) : (
+                        <p className="text-red-500">Error Updating: {editMessage}</p>
                       )
                     )
                   }
@@ -501,6 +618,10 @@ async function deleteEntry(tableName: string){
 
             </div>) : (<></>)
             }
+
+            {editOn && selectedEntryKey === null && <div className="px-4">No Entry Selected Please Select an Entry to Edit</div>}
+            {editLoading && <div className="px-4">Updating...</div>}
+            {editSuccess !== null && <p className={`${editSuccess ? "text-green-500" : "text-red-500"} px-4`}>{editSuccess ? "Successfully Updated Entry" : `Error: ${editMessage}`}</p>}
 
             {deleteOn && selectedEntryKey === null && <div className="px-4">No Entry Selected Please Select an Entry to Delete</div>}
             {deleteLoading &&  <div className="px-4">Deleting</div>}

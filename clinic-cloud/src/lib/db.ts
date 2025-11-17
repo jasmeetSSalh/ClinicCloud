@@ -269,7 +269,7 @@ export async function addEntry(query: string){
     
     return { success: true, message: 'New Entry Successfully Created'};
   } catch (error) {
-    console.error('Error populating tables:', error);
+    console.error('Error adding row to tables:', error);
     if (connection) {
       try {
         await connection.rollback();
@@ -288,7 +288,73 @@ export async function addEntry(query: string){
     }
   }
 }
+export async function editEntry(
+  tableName: string,
+  existingEntry: any,
+  replacementEntry: any
+) {
+  let connection;
+  try {
+    connection = await getConnection();
+    console.log("Editing entry:", { tableName, existingEntry, replacementEntry });
 
+    const primaryKey = Object.keys(existingEntry)[0];
+    const keyValue = existingEntry[primaryKey];
+
+    let updateQuery = `UPDATE ${tableName} SET `;
+    const setParts: string[] = [];
+
+    Object.entries(replacementEntry).forEach(([key, value], index) => {
+      if (value === '' || value === null) {
+        setParts.push(`${key} = null`);
+      } else if (key.includes("DATE")) {
+        setParts.push(`${key} = TO_DATE('${value}', 'YYYY-MM-DD')`);
+      } else if (!Number.isNaN(Number(value))) {
+        setParts.push(`${key} = ${value}`);
+      } else {
+        setParts.push(`${key} = '${value}'`);
+      }
+    });
+
+    updateQuery += setParts.join(", ");
+    
+    if (!Number.isNaN(Number(keyValue))) {
+      updateQuery += ` WHERE ${primaryKey} = ${keyValue}`;
+    } else {
+      updateQuery += ` WHERE ${primaryKey} = '${keyValue}'`;
+    }
+
+    console.log("Update query:", updateQuery);
+
+    const result = await connection.execute(updateQuery);
+
+    if (result.rowsAffected === 0) {
+      return { success: false, message: "No row matched the existing entry." };
+    }
+
+    await connection.commit();
+
+    return { success: true, message: "Entry updated successfully." };
+  } catch (error) {
+    console.error("Edit error:", error);
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Rollback error:", rollbackError);
+      }
+    }
+    return { success: false, message: error instanceof Error ? error.message : 'An unknown error occurred' };
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (error) {
+        console.error('Error closing connection:', error);
+      }
+    }
+  }
+}
 export async function deleteEntry(query:string){
   console.log(query);
   let connection;

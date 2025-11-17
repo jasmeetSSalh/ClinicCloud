@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addEntry, deleteEntry, getTableData } from '@/lib/db';
+import { addEntry, deleteEntry, editEntry, getTableData } from '@/lib/db';
 
 export async function GET(
   request: Request,
@@ -34,7 +34,6 @@ export async function POST(request:Request){
   try {
     console.log("dynamic post");
 
-    let dateColumns: number[] = [];
 
     const data = await request.json();
 
@@ -45,7 +44,7 @@ export async function POST(request:Request){
 
       let queryString = `INSERT INTO ${data.tableName} (`;
 
-      Object.entries(data.tableData).forEach(([key, _], index)=> {
+      Object.entries(data.tableData).forEach(([key], index)=> {
         if(index === Object.entries(data.tableData).length-1){
           queryString += `${key})`;
 
@@ -109,15 +108,37 @@ export async function POST(request:Request){
 
 }
 
+export async function PUT(request: Request) {
+  try {
+    const data = await request.json();
+    console.log("PUT request data:", data);
+
+    const result = await editEntry(
+      data.tableName,
+      data.existingEntry,
+      data.replacementEntry
+    );
+
+    if (result.success) {
+      return Response.json({ message: result.message }, { status: 200 });
+    } else {
+      return Response.json({ error: result.message }, { status: 500 });
+    }
+  } catch (error) {
+    console.error("PUT error:", error);
+    return Response.json({ error: "Error updating entry" }, { status: 500 });
+  }
+}
+
 export async function DELETE(request:Request) {
   try {
     const data = await request.json()
     console.log(data)    
     try {
-      let query = `DELETE FROM ${data.tableName} WHERE ${Object.entries(data.tableData)[0][0]} = ${Object.entries(data.tableData)[0][1]}`
+      const query = `DELETE FROM ${data.tableName} WHERE ${Object.entries(data.tableData)[0][0]} = ${Object.entries(data.tableData)[0][1]}`
       console.log(Object.entries(data.tableData)[0])
 
-      const res = await deleteEntry(query)
+      await deleteEntry(query)
 
       return Response.json({message: "Delete Successful"},{status:200})  
     } catch (error) {
