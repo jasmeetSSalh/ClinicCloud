@@ -16,6 +16,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [tableData, setTableData] = useState<TableData[]>([]);
+  const [tableDataDisplayed, setTableDataDisplayed] = useState<TableData[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -38,6 +39,9 @@ export default function Home() {
   const [editSuccess, setEditSuccess] = useState<boolean | null>(null);
   const [editMessage, setEditMessage] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
+
+  const [search, setSearch] = useState<string | null>(null);
+  const [searchDisabled, setSearchDisable] = useState(false);
 
   useEffect(() => {
     fetchTables();
@@ -133,8 +137,11 @@ const fetchTableData = async (tableName: string) => {
     if (!response.ok) {
       throw new Error(data.error || 'Failed to fetch table data');
     }
-    
+    console.log(Object.keys(data.data[0]));
+    setSearch(Object.keys(data.data[0])[0]);
+    setSearchDisable(false);
     setTableData(data.data || []);
+    setTableDataDisplayed(data.data || []);
   } catch (err) {
     setModalError(err instanceof Error ? err.message : 'An error occurred');
     setTableData([]);
@@ -167,6 +174,9 @@ const closeModal = () => {
   setEditSuccess(null);
   setEditMessage(null);
   setEditLoading(false);
+
+  setSearch(null);
+  setSearchDisable(true);
 };
 
 async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: string) {
@@ -315,6 +325,40 @@ async function editEntry(event: React.FormEvent<HTMLFormElement>, tableName: str
   setEditLoading(false);
 }
 
+function searchHandler(event: React.ChangeEvent<HTMLInputElement>){
+
+  console.log(event.target.value);
+  let input = event.target.value;
+
+  let searchElements = [...tableData].filter((element)=>{
+    if(search !== null){
+      const value = element[search];
+
+      if (input === "") return true;
+
+      if (value === null) {
+        return input.toLowerCase() === "null";
+      }
+
+      if (typeof value === "string") {
+        return value.toLowerCase().includes(input.toLowerCase());
+      }
+
+      if (typeof value === "number") {
+        return value.toString().includes(input);
+      }
+
+      return false;
+
+    } else {
+      return true
+    }
+  });
+  console.log(searchElements);
+  setTableDataDisplayed(searchElements);
+
+}
+
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
@@ -435,24 +479,28 @@ async function editEntry(event: React.FormEvent<HTMLFormElement>, tableName: str
                 ×
               </button>
             </div>
-            <div className="flex justify-end gap-4 px-4 py-4">
-              <button 
-                onClick={()=>{setCreateOn(!createOn); setCreateSuccess(null)}}
-                disabled={createDisable}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                {createOn ? "Cancel New Entry" : "Create New Entry"}
-              </button>
-              <button 
-                onClick={() => setEditOn(!editOn)}
-                disabled={selectedEntryKey === null}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                {editOn ? "Cancel Edit" : "Edit Entry"}
-              </button>
-              <button 
-                onClick={()=>setDeleteOn(!deleteOn)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:cursor-pointer hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                Delete Entry
-              </button>
+            <div className="flex justify-between gap-4 px-4 py-4 w-full">
+              <input type="text" onChange={(event) => searchHandler(event)} placeholder={`Search by ${search}`} className={`${searchDisabled ? "invisible " : "visible "} px-2 flex-1 border-zinc-400 border-solid border-2 rounded-lg`}/>
+              <div className="flex gap-4">
+                <button 
+                  onClick={()=>{setCreateOn(!createOn); setCreateSuccess(null)}}
+                  disabled={createDisable}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:cursor-pointer hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  {createOn ? "Cancel New Entry" : "Create New Entry"}
+                </button>
+                <button 
+                  onClick={() => setEditOn(!editOn)}
+                  disabled={selectedEntryKey === null}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  {editOn ? "Cancel Edit" : "Edit Entry"}
+                </button>
+                <button 
+                  onClick={()=>setDeleteOn(!deleteOn)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:cursor-pointer hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  Delete Entry
+                </button>                
+              </div>
+
             </div>
 
             {createOn && Array.isArray(tableData) && tableData.length > 0 && (
@@ -504,7 +552,7 @@ async function editEntry(event: React.FormEvent<HTMLFormElement>, tableName: str
 
             {editOn && selectedEntryKey !== null && selectedEntryObject && Array.isArray(tableData) && tableData.length > 0 && (
               <div className="flex justify-center py-4">
-                <form onSubmit={(event) => editEntry(event, selectedTable)} className="flex-1 flex flex-col gap-4 justify-center px-4 w-full">
+                <form onSubmit={(event) => editEntry(event, selectedTable)} className="flex-1 flex flex-col gap-4 justify-center px-4">
                   <div className="overflow-x-auto">
                     <table className="table-auto w-full border-collapse">
                       <thead className="bg-zinc-50 dark:bg-zinc-700 sticky top-0 border-l border-r border-zinc-50 dark:border-zinc-700">
@@ -552,7 +600,7 @@ async function editEntry(event: React.FormEvent<HTMLFormElement>, tableName: str
                     disabled={editLoading} 
                     type="submit" 
                     value="Update Entry"
-                    className="w-1/10 px-4 py-2 bg-blue-600 text-white rounded-lg hover:cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-min px-4 py-2 bg-blue-600 text-white rounded-lg hover:cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   />
                   {editLoading ? <p>Loading</p> : 
                     editSuccess !== null && (
@@ -648,7 +696,8 @@ async function editEntry(event: React.FormEvent<HTMLFormElement>, tableName: str
                         {Object.keys(tableData[0]).map((column) => (
                           <th
                             key={column}
-                            className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-600"
+                            onClick={()=>setSearch(column)}
+                            className={`${search === column ? "border-white border-2 border-solid" : "border-none border-zinc-200 dark:border-zinc-600"} px-4 py-3 hover:cursor-pointer text-left text-sm font-medium text-zinc-700 dark:text-zinc-300`}
                           >
                             {column}
                           </th>
@@ -656,7 +705,7 @@ async function editEntry(event: React.FormEvent<HTMLFormElement>, tableName: str
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-zinc-800">
-                      {tableData.map((row, index) => (
+                      {tableDataDisplayed.map((row, index) => (
                         <tr key={index} onClick={(event)=>selectEntry(event, index)} className={`${selectedEntryKey === index ? "bg-zinc-900" : "bg-none"}  hover:cursor-pointer hover:bg-zinc-700 group active:bg-zinc-500`}>
                           {Object.values(row).map((value, valueIndex) => (
                             <td
