@@ -1,24 +1,28 @@
 import { NextResponse } from 'next/server';
-import { addEntry, deleteEntry, editEntry, getTableData } from '@/lib/db';
+import { addEntry, deleteEntry, editEntry, getTableData, isKnownTable } from '@/lib/db';
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ tableName: string }> }
-) {
-  console.log("dynamic route get")
+type RouteContext = { params: Promise<{ tableName: string }> };
+
+async function resolveTable(params: RouteContext['params']) {
+  const { tableName } = await params;
+  return isKnownTable(tableName) ? tableName.toLowerCase() : null;
+}
+
+function invalidTable() {
+  return NextResponse.json({ error: 'Invalid table name' }, { status: 400 });
+}
+
+function writeResponse(result: { success: boolean; message: string }) {
+  return result.success
+    ? NextResponse.json({ message: result.message }, { status: 200 })
+    : NextResponse.json({ error: result.message }, { status: 400 });
+}
+
+export async function GET(request: Request, { params }: RouteContext) {
   try {
-    const { tableName } = await params;
-    
-    console.log("here's the table name", tableName);
+    const tableName = await resolveTable(params);
+    if (!tableName) return invalidTable();
 
-    // Basic validation to prevent SQL injection
-    if (!/^[a-z_]+$/.test(tableName)) {
-      return NextResponse.json(
-        { error: 'Invalid table name' },
-        { status: 400 }
-      );
-    }
-    
     const data = await getTableData(tableName);
     return NextResponse.json({ data, tableName });
   } catch (error) {
@@ -30,122 +34,43 @@ export async function GET(
   }
 }
 
-export async function POST(request:Request){
+export async function POST(request: Request, { params }: RouteContext) {
   try {
-    console.log("dynamic post");
-
+    const tableName = await resolveTable(params);
+    if (!tableName) return invalidTable();
 
     const data = await request.json();
-
-    try {
-
-      //console.log(data)
-      // const postRes = await addEntry(data);
-
-      let queryString = `INSERT INTO ${data.tableName} (`;
-
-      Object.entries(data.tableData).forEach(([key], index)=> {
-        if(index === Object.entries(data.tableData).length-1){
-          queryString += `${key})`;
-
-        } else {
-
-          queryString += `${key},`;
-          
-        }
-
-        
-      });
-      queryString += " VALUES (";
-      console.log(Object.entries(data.tableData));
-      Object.entries(data.tableData).forEach(([key, value], index)=> {
-        if(index === Object.entries(data.tableData).length-1){
-          if(value === ''){ // check if input is empty
-            queryString += `null)`
-          } else if(key.includes("DATE")){
-            queryString += `TO_DATE('${value}', 'YYYY-MM-DD'))`
-          } else if(!Number.isNaN(Number(value)) || value === null){
-            queryString += `${value})`
-          } else {
-            queryString += `'${value}')`
-          }
-
-        } else {
-          if(value === ''){ // check if there was no input for this field
-            queryString += `null,`
-          }else if(key.includes("DATE")){
-            queryString += `TO_DATE('${value}', 'YYYY-MM-DD'),`
-          } else if(!Number.isNaN(Number(value)) || value === null){ // check if the input is a number or not
-            queryString += `${value},`
-          } else {
-            queryString += `'${value}',` // input as string
-          }
-        }
-
-        
-      });
-
-      console.log(queryString)
-
-      const res = await addEntry(queryString);
-      if(!res.success){
-        return Response.json({message: res.message},{status:500})
-      } else {
-        return Response.json({message: res.message},{status:200})
-      }
-      
-    } catch (error) {
-      return Response.json({error: error}, {status: 500});
-    }
-
-  
-
-
+    return writeResponse(await addEntry(tableName, data.tableData ?? {}));
   } catch (error) {
-    return Response.json({error: "Error POSTing table data"});
+    console.error('POST error:', error);
+    return NextResponse.json({ error: 'Error inserting entry' }, { status: 500 });
   }
-
-
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: Request, { params }: RouteContext) {
   try {
-    const data = await request.json();
-    console.log("PUT request data:", data);
+    const tableName = await resolveTable(params);
+    if (!tableName) return invalidTable();
 
-    const result = await editEntry(
-      data.tableName,
-      data.existingEntry,
-      data.replacementEntry
+    const data = await request.json();
+    return writeResponse(
+      await editEntry(tableName, data.existingEntry ?? {}, data.replacementEntry ?? {})
     );
-
-    if (result.success) {
-      return Response.json({ message: result.message }, { status: 200 });
-    } else {
-      return Response.json({ error: result.message }, { status: 500 });
-    }
   } catch (error) {
-    console.error("PUT error:", error);
-    return Response.json({ error: "Error updating entry" }, { status: 500 });
+    console.error('PUT error:', error);
+    return NextResponse.json({ error: 'Error updating entry' }, { status: 500 });
   }
 }
 
-export async function DELETE(request:Request) {
+export async function DELETE(request: Request, { params }: RouteContext) {
   try {
-    const data = await request.json()
-    console.log(data)    
-    try {
-      const query = `DELETE FROM ${data.tableName} WHERE ${Object.entries(data.tableData)[0][0]} = ${Object.entries(data.tableData)[0][1]}`
-      console.log(Object.entries(data.tableData)[0])
+    const tableName = await resolveTable(params);
+    if (!tableName) return invalidTable();
 
-      await deleteEntry(query)
-
-      return Response.json({message: "Delete Successful"},{status:200})  
-    } catch (error) {
-      return Response.json({error: error},{status: 500})
-    }
+    const data = await request.json();
+    return writeResponse(await deleteEntry(tableName, data.tableData ?? {}));
   } catch (error) {
-    return Response.json({error: "Error DELETEing"})
+    console.error('DELETE error:', error);
+    return NextResponse.json({ error: 'Error deleting entry' }, { status: 500 });
   }
-
 }

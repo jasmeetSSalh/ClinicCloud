@@ -1,4 +1,3 @@
-import { connect } from 'http2';
 import oracledb from 'oracledb';
 
 // Initialize thick mode for better compatibility with older Oracle versions
@@ -124,10 +123,9 @@ export async function deleteAllTables() {
 export async function getTableData(tableName: string) {
   let connection;
   try {
+    assertKnownTable(tableName);
     connection = await getConnection();
 
-    console.log("Here's the table name", tableName);
-    
     const result = await connection.execute(
       `SELECT * FROM ${tableName}`,
       [],
@@ -242,106 +240,131 @@ export async function populateAllTables() {
   }
 }
 
-export async function addEntry(query: string){
+// Table and column names can't be passed as bind variables, so they are checked
+// against the real schema before they are written into a statement. Every value
+// is passed as a bind variable.
+const TABLES = new Set([
+  'hospital_personnel',
+  'patient_list',
+  'pharm_med_inventory',
+  'pharm_supply_inventory',
+  'hosp_personnel_pat_assign',
+  'hosp_med_inventory',
+  'hosp_supply_inventory',
+  'patient_med_order',
+  'hosp_med_order',
+  'hosp_supply_order',
+]);
+
+type Row = Record<string, unknown>;
+type Binds = Record<string, string | number | null>;
+type WriteResult = { success: boolean; message: string };
+
+export function isKnownTable(tableName: string) {
+  return TABLES.has(tableName.toLowerCase());
+}
+
+function assertKnownTable(tableName: string) {
+  if (!isKnownTable(tableName)) {
+    throw new Error(`Unknown table: ${tableName}`);
+  }
+}
+
+// Column name -> Oracle data type, e.g. PATIENT_NAME -> VARCHAR2.
+type Columns = Map<string, string>;
+
+async function getColumns(connection: oracledb.Connection, tableName: string): Promise<Columns> {
+  const result = await connection.execute<[string, string]>(
+    `SELECT column_name, data_type FROM user_tab_columns WHERE table_name = :tableName`,
+    { tableName: tableName.toUpperCase() }
+  );
+  return new Map((result.rows ?? []).map(([name, type]) => [name, type]));
+}
+
+async function getPrimaryKeyColumns(connection: oracledb.Connection, tableName: string) {
+  const result = await connection.execute<[string]>(
+    `SELECT cols.column_name
+       FROM user_constraints cons
+       JOIN user_cons_columns cols ON cols.constraint_name = cons.constraint_name
+      WHERE cons.constraint_type = 'P' AND cons.table_name = :tableName
+      ORDER BY cols.position`,
+    { tableName: tableName.toUpperCase() }
+  );
+  return (result.rows ?? []).map((row) => row[0]);
+}
+
+// Upper-cases the keys and rejects any column the table doesn't have.
+function toColumnRow(columns: Columns, row: Row) {
+  const normalized: Row = {};
+  for (const [key, value] of Object.entries(row)) {
+    const column = key.toUpperCase();
+    if (!columns.has(column)) {
+      throw new Error(`Unknown column: ${key}`);
+    }
+    normalized[column] = value;
+  }
+  return normalized;
+}
+
+// Adds a value to the binds and returns the placeholder to use for it in the SQL.
+// DATE columns take YYYY-MM-DD strings from the form's date inputs.
+function bindValue(binds: Binds, columns: Columns, column: string, value: unknown) {
+  if (value !== null && value !== undefined && typeof value !== 'string' && typeof value !== 'number') {
+    throw new Error(`Invalid value for ${column}`);
+  }
+  const name = `b${Object.keys(binds).length}`;
+  binds[name] = value === '' || value === undefined ? null : value;
+  return columns.get(column) === 'DATE' ? `TO_DATE(:${name}, 'YYYY-MM-DD')` : `:${name}`;
+}
+
+// Matches a row on its primary key. Composite keys use every key column, so
+// deleting one patient assignment doesn't delete the patient's other assignments.
+async function buildWhereClause(
+  connection: oracledb.Connection,
+  tableName: string,
+  columns: Columns,
+  row: Row,
+  binds: Binds
+) {
+  const primaryKey = await getPrimaryKeyColumns(connection, tableName);
+  const keyColumns = primaryKey.length > 0 ? primaryKey : [Object.keys(row)[0]];
+
+  const conditions = keyColumns.map((column) => {
+    if (row[column] === undefined || row[column] === '') {
+      throw new Error(`Missing value for key column ${column}`);
+    }
+    return `${column} = ${bindValue(binds, columns, column, row[column])}`;
+  });
+
+  return conditions.join(' AND ');
+}
+
+async function runWrite(
+  tableName: string,
+  successMessage: string,
+  buildStatement: (connection: oracledb.Connection) => Promise<{ sql: string; binds: Binds }>
+): Promise<WriteResult> {
   let connection;
   try {
+    assertKnownTable(tableName);
     connection = await getConnection();
-    console.log("inside addEntry")
-    console.log(query);
 
-    // query database to add a new entry
+    const { sql, binds } = await buildStatement(connection);
+    const result = await connection.execute(sql, binds);
 
-    try {
-      console.log("query executing")
-      await connection.execute(query)
-      console.log("query executed")
-
-    } catch (error: any) {
-      // Log individual insert errors but continue with other inserts
-      console.error(`Error inserting new entry: `, error);
-      return {success: false, message: error}
+    if (result.rowsAffected === 0) {
+      return { success: false, message: 'No row matched the selected entry.' };
     }
-    
 
     await connection.commit();
-
-    console.log("query commited")
-    
-    return { success: true, message: 'New Entry Successfully Created'};
+    return { success: true, message: successMessage };
   } catch (error) {
-    console.error('Error adding row to tables:', error);
+    console.error(`Error writing to ${tableName}:`, error);
     if (connection) {
       try {
         await connection.rollback();
       } catch (rollbackError) {
         console.error('Error rolling back transaction:', rollbackError);
-      }
-    }
-    throw error;
-  } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (error) {
-        console.error('Error closing connection:', error);
-      }
-    }
-  }
-}
-export async function editEntry(
-  tableName: string,
-  existingEntry: any,
-  replacementEntry: any
-) {
-  let connection;
-  try {
-    connection = await getConnection();
-    console.log("Editing entry:", { tableName, existingEntry, replacementEntry });
-
-    const primaryKey = Object.keys(existingEntry)[0];
-    const keyValue = existingEntry[primaryKey];
-
-    let updateQuery = `UPDATE ${tableName} SET `;
-    const setParts: string[] = [];
-
-    Object.entries(replacementEntry).forEach(([key, value], index) => {
-      if (value === '' || value === null) {
-        setParts.push(`${key} = null`);
-      } else if (key.includes("DATE")) {
-        setParts.push(`${key} = TO_DATE('${value}', 'YYYY-MM-DD')`);
-      } else if (!Number.isNaN(Number(value))) {
-        setParts.push(`${key} = ${value}`);
-      } else {
-        setParts.push(`${key} = '${value}'`);
-      }
-    });
-
-    updateQuery += setParts.join(", ");
-    
-    if (!Number.isNaN(Number(keyValue))) {
-      updateQuery += ` WHERE ${primaryKey} = ${keyValue}`;
-    } else {
-      updateQuery += ` WHERE ${primaryKey} = '${keyValue}'`;
-    }
-
-    console.log("Update query:", updateQuery);
-
-    const result = await connection.execute(updateQuery);
-
-    if (result.rowsAffected === 0) {
-      return { success: false, message: "No row matched the existing entry." };
-    }
-
-    await connection.commit();
-
-    return { success: true, message: "Entry updated successfully." };
-  } catch (error) {
-    console.error("Edit error:", error);
-    if (connection) {
-      try {
-        await connection.rollback();
-      } catch (rollbackError) {
-        console.error("Rollback error:", rollbackError);
       }
     }
     return { success: false, message: error instanceof Error ? error.message : 'An unknown error occurred' };
@@ -355,52 +378,55 @@ export async function editEntry(
     }
   }
 }
-export async function deleteEntry(query:string){
-  console.log(query);
-  let connection;
-  try {
-    connection = await getConnection();
-    console.log("inside deleteEntry")
-    console.log(query);
 
-    try {
-      console.log("query executing")
-      await connection.execute(query)
-      console.log("query executed")
-
-    } catch (error: any) {
-      // Log individual insert errors but continue with other inserts
-      console.error(`Error inserting new entry: `, error);
-      return {success: false, message: error}
+export async function addEntry(tableName: string, entry: Row) {
+  return runWrite(tableName, 'New Entry Successfully Created', async (connection) => {
+    const columns = await getColumns(connection, tableName);
+    const row = toColumnRow(columns, entry);
+    const names = Object.keys(row);
+    if (names.length === 0) {
+      throw new Error('No values to insert');
     }
 
+    const binds: Binds = {};
+    const values = names.map((column) => bindValue(binds, columns, column, row[column]));
 
-    await connection.commit();
+    return {
+      sql: `INSERT INTO ${tableName} (${names.join(', ')}) VALUES (${values.join(', ')})`,
+      binds,
+    };
+  });
+}
 
-    console.log("query commited")
-    return {success: true , message: "Successfully Deleted Entry"}
-    
-
-  } catch (error) {
-    console.error('Error deleting entry:', error);
-    if (connection) {
-      try {
-        await connection.rollback();
-      } catch (rollbackError) {
-        console.error('Error rolling back transaction:', rollbackError);
-      }
+export async function editEntry(tableName: string, existingEntry: Row, replacementEntry: Row) {
+  return runWrite(tableName, 'Entry updated successfully.', async (connection) => {
+    const columns = await getColumns(connection, tableName);
+    const existing = toColumnRow(columns, existingEntry);
+    const replacement = toColumnRow(columns, replacementEntry);
+    if (Object.keys(replacement).length === 0) {
+      throw new Error('No values to update');
     }
-    throw error;
 
-  } finally{
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (error) {
-        console.error('Error closing connection:', error);
-      }
-    }
-  }
+    const binds: Binds = {};
+    const setParts = Object.entries(replacement).map(
+      ([column, value]) => `${column} = ${bindValue(binds, columns, column, value)}`
+    );
+    const where = await buildWhereClause(connection, tableName, columns, existing, binds);
+
+    return { sql: `UPDATE ${tableName} SET ${setParts.join(', ')} WHERE ${where}`, binds };
+  });
+}
+
+export async function deleteEntry(tableName: string, entry: Row) {
+  return runWrite(tableName, 'Successfully Deleted Entry', async (connection) => {
+    const columns = await getColumns(connection, tableName);
+    const row = toColumnRow(columns, entry);
+
+    const binds: Binds = {};
+    const where = await buildWhereClause(connection, tableName, columns, row, binds);
+
+    return { sql: `DELETE FROM ${tableName} WHERE ${where}`, binds };
+  });
 }
 
 export async function createAllTables() {
