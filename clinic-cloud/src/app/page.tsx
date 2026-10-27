@@ -215,7 +215,7 @@ async function handleSubmit(event: React.FormEvent<HTMLFormElement>, tableName: 
   } else {
     console.log("something went wrong");    
     console.log(result);
-    setCreateResultMsg(result.message.code);
+    setCreateResultMsg(result.error);
     setCreateSuccess(false);
   }
   setCreateDisable(false);
@@ -279,7 +279,7 @@ async function deleteEntry(tableName: string){
     } else {
       console.log(result)
       setDeleteSuccess(false);
-      setDelMsg(result.error.code);
+      setDelMsg(result.error);
     }
     setDelLoading(false);
 
